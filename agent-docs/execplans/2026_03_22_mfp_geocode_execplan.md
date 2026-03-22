@@ -8,7 +8,7 @@ This document must be maintained in accordance with `agent-docs/PLANS.md` from t
 
 ## ExecPlan Status
 
-Status: Execution (In Progress)  
+Status: Complete  
 Owner: Codex  
 Created: 2026-03-22  
 Last Updated: 2026-03-22  
@@ -28,6 +28,7 @@ Dependencies: `0_inputs/input_root.txt`, `2_processed_data/processed_root.txt`, 
 | 2026-03-22 | Initial ExecPlan drafted from repository context, source workbook inspection, attached SBA example script, and official Census geocoder documentation | Codex |
 | 2026-03-22 | Scope narrowed to one address per row; lender geocoding removed; `dplyr`-first implementation preference recorded | Codex |
 | 2026-03-22 | Execution started; ingest script rewritten; geocoding script added; workbook row-count assumptions corrected to reflect all four sheets | Codex |
+| 2026-03-22 | ExecPlan closed after full geocoding run, artifact inspection, and PO Box audit addendum | Codex |
 
 ---
 
@@ -77,8 +78,10 @@ After this change, a user should be able to run the ingest stage and produce an 
 - [x] (2026-03-22 19:20Z) User clarified that lender geocoding is out of scope for this project and that the ingest rewrite should preserve `dplyr` syntax for readability.
 - [x] (2026-03-22 20:55Z) Rewrote `1_code/1_0_ingest/1_0_0_ingest_adhoc.R` to combine all four workbook sheets, use relative path pointers, preserve `dplyr` syntax, and write `adhoc_payments_ingested.rds`.
 - [x] (2026-03-22 21:10Z) Added `1_code/1_0_ingest/1_0_1_geocode_adhoc.R` with batch Census geocoding, preflight mode, cache reuse, and a simple audit-summary artifact.
-- [ ] (2026-03-22 21:20Z) Run the full geocoding job and validate the final output artifacts (completed: ingest artifact and live preflight validated; remaining: finish all Census batches, save final `.rds`, inspect audit summary).
-- [ ] Update the repository README mechanically after the execplan is executed and closed.
+- [x] (2026-03-22 21:22Z) Ran the full geocoding job, wrote `adhoc_payments_geocoded.rds` and `adhoc_payments_geocode_audit.csv`, and confirmed row preservation plus 11-digit tract integrity.
+- [x] (2026-03-22 21:45Z) Inspected the final artifacts and confirmed that PO Boxes explain the majority of no-match rows.
+- [x] (2026-03-22 21:55Z) Added a PO Box audit addendum to `1_code/1_0_ingest/1_0_1_geocode_adhoc.R` so future audit outputs make that pattern explicit.
+- [x] (2026-03-22 22:00Z) Closed the execplan. No repository README file exists in this workspace, so no README update was possible.
 
 ---
 
@@ -107,6 +110,15 @@ After this change, a user should be able to run the ingest stage and produce an 
 
 - Observation: A live preflight against the Census batch geocoder matched 8 of the first 10 unique addresses and confirmed the request/response contract.
   Evidence: Execution of `1_code/1_0_ingest/1_0_1_geocode_adhoc.R --preflight-only` on 2026-03-22 wrote `adhoc_payments_geocode_preflight.csv`.
+
+- Observation: The completed full run matched 2,433,922 of 2,924,968 rows, with 490,736 no-match rows and 310 invalid-address rows. All non-missing tract values have 11 digits.
+  Evidence: Inspection of `adhoc_payments_geocoded.rds` and `adhoc_payments_geocode_audit.csv` on 2026-03-22.
+
+- Observation: PO Boxes account for 263,378 no-match rows, which is 53.67% of all no-match rows, and PO Box rows almost never match the Census batch geocoder.
+  Evidence: Post-run inspection of `adhoc_payments_geocoded.rds` on 2026-03-22.
+
+- Observation: This repository currently has no `README` or `README.md` file to update.
+  Evidence: Repository file search on 2026-03-22 returned no README path.
 
 ---
 
@@ -146,13 +158,13 @@ After this change, a user should be able to run the ingest stage and produce an 
 
 **Summary of Outcome**
 
-Execution is in progress. The ingest script has been rewritten and validated through artifact creation, the geocoding script has been added and validated through a live preflight, and the full Census batch run is underway.
+Execution is complete. The ingest script was rewritten, the geocoding script was added and run to completion, the final processed artifacts were inspected, and the PO Box audit interpretation was added back into the geocoding script for future runs.
 
 **Expected vs. Actual Result**
 
 - Expected outcome: A self-contained execution plan that a novice could follow to implement the geocoding pipeline.
-- Actual outcome: A self-contained execution plan plus partial execution progress, including a completed ingest artifact and a validated live preflight geocode.
-- Difference (if any): The combined row count turned out to require all four workbook sheets, so the validation counts are now based on the full workbook rather than the first-sheet inspection used in the earliest draft.
+- Actual outcome: A completed execution plan plus working ingest and geocoding scripts, a finished geocoded dataset, and an audit summary explaining the dominant PO Box non-match pattern.
+- Difference (if any): The combined row count turned out to require all four workbook sheets, so the final validation counts are based on the full workbook rather than the first-sheet inspection used in the earliest draft.
 
 **Key Challenges Encountered**
 
@@ -162,13 +174,17 @@ Execution is in progress. The ingest script has been rewritten and validated thr
 - Challenge: The current ingest script is not operational and cannot be treated as an implementation baseline.
   Resolution: The plan treats the ingest script as a rewrite within the same file rather than a small patch.
 
+- Challenge: More than half of all no-match rows were not generic geocoder misses but PO Box addresses, which the Census batch geocoder rarely resolves to tract-level geography.
+  Resolution: Inspect the completed artifacts directly, quantify the PO Box contribution, and add that interpretation to the script-level audit output for future runs.
+
 **Lessons Learned**
 
 - Lesson: The attached SBA script is a process reference, not a drop-in template. The data contract must be rewritten for the MFP workbook before coding begins.
+- Lesson: For this dataset, a simple audit summary is enough, but it should explicitly separate structural PO Box non-matches from other geocoder failures.
 
 **Follow-up Work**
 
-- Follow-up task: Let the full geocoding job finish, inspect the audit summary and final `.rds`, then update the README mechanically and mark the plan complete.
+- Follow-up task: If needed, derive a second-pass descriptive summary for non-PO-Box no-match rows by state, address pattern, or program year. This is optional analysis, not required pipeline work.
 
 ---
 
@@ -321,6 +337,15 @@ Key observed raw-workbook facts from planning:
     geocode-ready rows = 2,924,658
     unique geocode-ready addresses = 639,196
 
+    Final geocoding artifact summary observed on 2026-03-22:
+    matched rows = 2,433,922
+    no-match rows = 490,736
+    invalid-address rows = 310
+    11-digit tract check = TRUE
+    PO Box rows = 263,659
+    PO Box no-match rows = 263,378
+    PO Box share of all no-match rows = 0.5367
+
 Examples showing why `Address Information Line` should not be treated as the street field:
 
     Address Information Line        Delivery Address Line
@@ -370,14 +395,14 @@ U.S. Census batch geocoder dependency
 
 Before marking the ExecPlan **Complete**, verify:
 
-- [ ] `1_code/1_0_ingest/1_0_0_ingest_adhoc.R` has been rewritten and validated.
-- [ ] `1_code/1_0_ingest/1_0_1_geocode_adhoc.R` has been added and validated.
-- [ ] Validation and acceptance checks passed.
-- [ ] Processed artifacts are written to the correct processed-data root.
-- [ ] Data contracts remain satisfied, including row preservation and 11-digit tract formatting.
-- [ ] Progress log reflects the final state.
-- [ ] README updates, if any, are mechanical and comply with `agent-docs/README_update_instructset.md`.
-- [ ] ExecPlan Status updated to **Complete**.
+- [x] `1_code/1_0_ingest/1_0_0_ingest_adhoc.R` has been rewritten and validated.
+- [x] `1_code/1_0_ingest/1_0_1_geocode_adhoc.R` has been added and validated.
+- [x] Validation and acceptance checks passed.
+- [x] Processed artifacts are written to the correct processed-data root.
+- [x] Data contracts remain satisfied, including row preservation and 11-digit tract formatting.
+- [x] Progress log reflects the final state.
+- [x] README updates, if any, are mechanical and comply with `agent-docs/README_update_instructset.md`. No README file exists in this repository, so no README change was made.
+- [x] ExecPlan Status updated to **Complete**.
 
 ---
 
@@ -386,3 +411,4 @@ Before marking the ExecPlan **Complete**, verify:
 - 2026-03-22: Initial draft created after inspecting the repository, the raw workbook schema, the attached SBA geocode example, and the official Census geocoding documentation.
 - 2026-03-22: Updated after user clarification that this project has one address per row and no lender data, and that the ingest rewrite should preserve `dplyr` syntax for readability. Also normalized the planned output column names to `address_latitude`, `address_longitude`, and `census_tract`.
 - 2026-03-22: Updated during execution to reflect the completed ingest rewrite, the added geocoding script, the corrected four-sheet row count, the elevated-permission save requirement for the external processed-data folder, and the successful live preflight geocode run.
+- 2026-03-22: Updated at closeout to record the finished geocoding outputs, the dominant PO Box non-match pattern, the audit addendum in the geocoding script, and the absence of a repository README to update.

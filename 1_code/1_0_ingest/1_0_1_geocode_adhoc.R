@@ -93,6 +93,16 @@ clean_character <- function(x) {
     na_if("")
 }
 
+# Flag likely PO Box strings. This matters for interpretation because the
+# Census batch geocoder often fails to return tract-level results for PO Boxes.
+is_po_box_address <- function(x) {
+  grepl(
+    "^P[.]?[[:space:]]*O[.]?[[:space:]]*BOX",
+    dplyr::coalesce(x, ""),
+    ignore.case = TRUE
+  )
+}
+
 # Extract the first five digits of a ZIP code for Census batch input.
 normalize_zip5 <- function(x) {
   x |>
@@ -660,11 +670,28 @@ geocoded_payments <- payments |>
       geocode_status == "matched",
       census_tract,
       NA_character_
-    )
+    ),
+    is_po_box = is_po_box_address(address_street)
   )
 
 tract_length_ok <- all(
   nchar(geocoded_payments$census_tract[!is.na(geocoded_payments$census_tract)]) == 11
+)
+
+po_box_rows <- sum(geocoded_payments$is_po_box, na.rm = TRUE)
+po_box_matched_rows <- sum(
+  geocoded_payments$is_po_box & geocoded_payments$geocode_status == "matched",
+  na.rm = TRUE
+)
+po_box_no_match_rows <- sum(
+  geocoded_payments$is_po_box & geocoded_payments$geocode_status == "no_match",
+  na.rm = TRUE
+)
+all_no_match_rows <- sum(geocoded_payments$geocode_status == "no_match", na.rm = TRUE)
+po_box_share_of_no_match_rows <- dplyr::if_else(
+  all_no_match_rows > 0,
+  po_box_no_match_rows / all_no_match_rows,
+  NA_real_
 )
 
 audit_summary <- tibble(
@@ -677,7 +704,12 @@ audit_summary <- tibble(
   unique_ready_addresses = nrow(unique_addresses),
   matched_unique_addresses = sum(full_lookup$geocode_status == "matched", na.rm = TRUE),
   no_match_unique_addresses = sum(full_lookup$geocode_status == "no_match", na.rm = TRUE),
-  tract_length_11_check = tract_length_ok
+  tract_length_11_check = tract_length_ok,
+  po_box_rows = po_box_rows,
+  po_box_matched_rows = po_box_matched_rows,
+  po_box_no_match_rows = po_box_no_match_rows,
+  po_box_share_of_no_match_rows = po_box_share_of_no_match_rows,
+  po_box_note = "PO Boxes rarely match the Census batch geocoder; interpret no-match totals with that pattern in mind."
 )
 
 # -----------------------------
@@ -693,6 +725,12 @@ message(sprintf("Total rows: %s", scales::comma(audit_summary$total_rows)))
 message(sprintf("Matched rows: %s", scales::comma(audit_summary$matched_rows)))
 message(sprintf("No-match rows: %s", scales::comma(audit_summary$no_match_rows)))
 message(sprintf("Invalid-address rows: %s", scales::comma(audit_summary$invalid_address_rows)))
+message(sprintf("PO Box rows: %s", scales::comma(audit_summary$po_box_rows)))
+message(sprintf("PO Box no-match rows: %s", scales::comma(audit_summary$po_box_no_match_rows)))
+message(sprintf(
+  "PO Box share of no-match rows: %s",
+  scales::percent(audit_summary$po_box_share_of_no_match_rows, accuracy = 0.1)
+))
 message(sprintf("11-digit tract check: %s", tract_length_ok))
 message("Finished ad hoc MFP geocoding.")
 
