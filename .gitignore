@@ -1,0 +1,5 @@
+# Ignore any directory named 0_data, no matter where it appears
+.Rproj.user
+.RData
+**/legacy/
+**/3_outputs/
