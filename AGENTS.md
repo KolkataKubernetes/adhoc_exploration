@@ -79,3 +79,4 @@ Codex should update the README after each execplan is marked close, and confirm 
 - Do not introduce new estimators, identification strategies, variable constructions, or sample definitions unless explicitly requested.
 - If sample restrictions are introduced in the reduced form or descriptives, explicit comment should be made of such restriction. Do not drop data from descriptive or estimation procedures without explicitly noting as such either in the file preamble or code comment.
 - Never infer research intent from file names, directory structure, or reference documents.
+- Never close an execplan without explicit permission from the user.
