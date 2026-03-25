@@ -271,9 +271,7 @@ spatial_caption <- paste(
   )
 )
 
-spatial_counts_plot <- count_map_sf |>
-  { continental_count_map_sf } |>
-  ggplot() +
+spatial_counts_plot <- ggplot() +
   geom_polygon(
     data = state_map,
     aes(x = long, y = lat, group = group),
@@ -312,9 +310,7 @@ spatial_counts_plot <- count_map_sf |>
     legend.title = element_text(size = 10, face = "bold")
   )
 
-spatial_dollars_plot <- amount_map_sf |>
-  { continental_amount_map_sf } |>
-  ggplot() +
+spatial_dollars_plot <- ggplot() +
   geom_polygon(
     data = state_map,
     aes(x = long, y = lat, group = group),
